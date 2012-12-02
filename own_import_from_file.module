@@ -41,7 +41,7 @@ function own_import_from_file_form() {
     '#value' => t('Import')
   );
 
-  
+
 
   return $form;
 }

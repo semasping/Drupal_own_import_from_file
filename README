@@ -1,1 +1,3 @@
-This file was created by JetBrains PhpStorm 5.0.4 for binding GitHub repository
+Module for drupal 7. 
+Imports nodes from file to drupal. 
+Write as template for articles on drupal.ru.
