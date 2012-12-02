@@ -33,16 +33,25 @@ function own_import_from_file_form() {
 
   $form['import_file'] = array(
     '#type' => 'file',
-    '#title' => 'Файл для импорта',
+    '#title' => t('Excel file for import'),
   );
 
   $form['actions']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Import')
   );
-
-
-
   return $form;
 }
+
+function own_import_from_file_form_validate($form, &$form_state) {
+  $path_parts = pathinfo($_FILES['files']['name']['import_file']);
+  if (!isset($path_parts["extension"])) {
+    form_set_error('import_file', t('File not choose'));
+  }
+
+  if (isset($path_parts["extension"]) && ($path_parts["extension"] != 'xlsx') && ($path_parts["extension"] != 'xls')) {
+    form_set_error('import_file', t('Wrong type of file! Choose Excel file. You choose: @ext', array('@ext'=>$path_parts["extension"])));
+  }
+}
+
 
