@@ -1,0 +1,7 @@
+<?php
+
+function own_import_from_file_install() {
+  drupal_set_message(t("In order to use own_import_from_file, you must first download the entire library (1.7) at !link and put it under sites/all/libraries/PHPExcel/ (so you should have sites/all/libraries/PHPExcel/PHPExcel.php)", array('!link' => '<a href="http://www.phpexcel.net">phpexcel.net</a>')), 'warning');
+}
+
+?>

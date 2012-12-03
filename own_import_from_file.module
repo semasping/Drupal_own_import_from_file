@@ -50,8 +50,113 @@ function own_import_from_file_form_validate($form, &$form_state) {
   }
 
   if (isset($path_parts["extension"]) && ($path_parts["extension"] != 'xlsx') && ($path_parts["extension"] != 'xls')) {
-    form_set_error('import_file', t('Wrong type of file! Choose Excel file. You choose: @ext', array('@ext'=>$path_parts["extension"])));
+    form_set_error('import_file', t('Wrong type of file! Choose Excel file. You choose: @ext', array('@ext' => $path_parts["extension"])));
   }
 }
 
+function own_import_from_file_form_submit($form, &$form_state) {
+  $dir = 'public://import_files/';
+  file_prepare_directory($dir, FILE_CREATE_DIRECTORY); // проверка на наличие директории.
+  $file = $dir . $_FILES['files']['name']['import_file'];
+  if ($result = move_uploaded_file($_FILES['files']['tmp_name']['import_file'], $file)) {
+    own_import_from_file_work($file); // передаем наш файл на дальнейшую обработку.
+  }
+  else {
+    form_set_error('import_file', t('Error with saving. File not saved. Try another file or contact the administrator.'));
+    return '';
+  }
+}
+
+function own_import_from_file_work($file) {
+  //drupal_set_message('Тут мы будем работать с файлом.');
+  $arr_from_file = own_import_from_file_get_array_from_file($file);
+  // dpm($arr_from_file, 'array from file');
+  own_import_from_file_save_nodes($arr_from_file);
+  return '';
+}
+
+function own_import_from_file_get_array_from_file($file) {
+  $lib_dir = libraries_get_path('PHPExcel');
+  require_once($lib_dir . '/PHPExcel/IOFactory.php');
+  $objPHPExcel = PHPExcel_IOFactory::load(drupal_realpath($file));
+  $objPHPExcel->setActiveSheetIndex(0);
+  $aSheet = $objPHPExcel->getActiveSheet();
+  // обрабатываем каждую строку
+  foreach ($aSheet->getRowIterator() as $rkey => $row) {
+    $cellIterator = $row->getCellIterator();
+    // в зависмости от номера строки создаем массив заголовков.
+    switch ($rkey) {
+      case 1: // Нормально название колонки
+        break;
+      case 2: // Название колонки для Drupal
+        foreach ($cellIterator as $ckey => $cell) {
+          $kkey[$ckey] = $cell->getCalculatedValue();
+        }
+        break;
+
+      default:
+        // обрабатываем каждую ячейку строки
+        foreach ($cellIterator as $ckey => $cell) {
+          $res[$rkey][$kkey[$ckey]] = trim($cell->getCalculatedValue());
+        }
+    }
+  }
+  return $res;
+}
+
+function own_import_from_file_save_nodes($arr_from_file) {
+  foreach ($arr_from_file as $row_key => $row_value) {
+    $node = new stdClass();
+    $node->type = 'planshet';
+    node_object_prepare($node);
+
+    $node->title = $row_value['field_vendor_pad'] . ' ' . $row_value['field_model_pad'];
+    $node->language = LANGUAGE_NONE;
+
+    $node->body[$node->language] = _own_import_from_file_get_value($row_value['body'], 'bigtext');
+    $node->field_model_pad[$node->language] = _own_import_from_file_get_value($row_value['field_model_pad'], 'text');
+    $node->field_vendor_pad[$node->language] = _own_import_from_file_get_tid($row_value['field_vendor_pad'], 'vendor');
+    $node->field_hdd_pad[$node->language] = _own_import_from_file_get_tid($row_value['field_hdd_pad'], 'hdd');
+    node_save($node);
+
+    drupal_set_message(t('Imported !title with nid: @nid', array(
+      '!title' => l($node->title, 'node/' . $node->nid),
+      '@nid' => $node->nid
+    )));
+  }
+}
+
+function _own_import_from_file_get_value($value, $type) {
+  switch ($type) {
+    case 'bigtext':
+      $format = 'filtered_html';
+      $ret_value[] = array('value' => check_markup($value, $format), 'format' => $format);
+      break;
+    case 'text':
+      $ret_value[] = array('value' => $value);
+      break;
+    default:
+      $ret_value[] = $value;
+  }
+  return $ret_value;
+}
+
+function _own_import_from_file_get_tid($value, $vocab_name) {
+  $arr_val_tax = explode(';', $value);
+  foreach ($arr_val_tax as $val_tax) {
+    $term = taxonomy_get_term_by_name($val_tax, $vocab_name);
+    if (!empty($term)) {
+      $arr_tid[] = reset($term)->tid;
+    }
+    else {
+      $vocabulary = taxonomy_vocabulary_machine_name_load($vocab_name);
+      $term = new stdClass();
+      $term->name = $val_tax;
+      $term->vid = $vocabulary->vid;
+      taxonomy_term_save($term);
+      $arr_tid[] = $term->tid;
+    }
+  }
+  return $arr_tid;
+}
 

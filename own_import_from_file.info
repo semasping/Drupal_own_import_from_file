@@ -3,6 +3,5 @@ description = 'Template for import nodes from file. For articles on drupal.ru'
 core = '7.x'
 package = 'Import'
 version = '7.x-0.1'
-dependencies[] = libraries
 
 files[] = own_import_from_file.module
